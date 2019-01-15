@@ -6,6 +6,12 @@ import cv2
 import numpy as np
 import sys
 
+# detThreshVal() anazlyzes a grayscale image and returns an appropriate
+#   threshold value to distinguish the foreground shapes from the background
+def detThreshVal(blurred):
+    thresh_value = 60
+
+    return thresh_value
 
 # detect() takes a single opencv contour and returns the shape
 #   of the contour as a string 
@@ -54,7 +60,7 @@ def countShapes(img_path):
     # perform thresholding to separate shapes from background
     #   TODO: devise a method to determine an appropriate thresh_value for an
     #         arbitrary image, hard-coding this value is extremely unreliable
-    thresh_value = 60
+    thresh_value = detThreshVal(blurred)
     ret, thresh = cv2.threshold(blurred, thresh_value, 255, cv2.THRESH_BINARY_INV)    
 
     # get outline of the shapes
