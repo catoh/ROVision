@@ -6,12 +6,15 @@ import cv2
 import numpy as np
 import sys
 
-# detThreshVal() anazlyzes a grayscale image and returns an appropriate
+# detThreshVal() analyzes a grayscale image and returns an appropriate
 #   threshold value to distinguish the foreground shapes from the background
 def detThreshVal(blurred):
-    thresh_value = 60
+    #thresh_value = 60
+
+    # get the mean value of all the pixels in the image
     thresh_value = int(np.mean(blurred))
-    print('Mean pixel value: ', thresh_value)
+    #print('Mean pixel value: ', thresh_value)
+    
     return thresh_value
 
 # detect() takes a single opencv contour and returns the shape
@@ -58,9 +61,9 @@ def countShapes(img_path):
     # blur the image to eliminate any artifacts or outlines
     blurred = cv2.GaussianBlur(gray, (5,5), 0)
     blurred = cv2.GaussianBlur(blurred, (5,5), 0)
+
     # perform thresholding to separate shapes from background
-    #   TODO: devise a method to determine an appropriate thresh_value for an
-    #         arbitrary image, hard-coding this value is extremely unreliable
+    #   TODO: test detThreshVal thoroughly
     thresh_value = detThreshVal(blurred)
     ret, thresh = cv2.threshold(blurred, thresh_value, 255, cv2.THRESH_BINARY_INV)    
     cv2.imwrite('/home/hc/Github/ROVision/Media/thresh.jpg', thresh)
