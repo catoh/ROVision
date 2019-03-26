@@ -1,0 +1,281 @@
+//slave
+#include <SPI.h>        
+#include <Ethernet.h>
+#include <EthernetUdp.h>
+#include <Servo.h>
+
+byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+IPAddress ip(192, 168, 1, 15);
+IPAddress remIp(92, 168, 1, 176);
+unsigned int localPort = 5678;      // local port to listen on
+EthernetUDP Udp;
+const byte arraysize = 4;
+byte packetBuffer[arraysize];
+const int halt = 1500;//easy to reference variable to stop thrusters when needed
+int gtrout=10;
+
+
+Servo thrusterA;
+Servo thrusterB;
+Servo thrusterC;
+Servo thrusterD;
+Servo thrusterE;
+Servo thrusterF;
+
+void setup(){
+  Ethernet.begin(mac,ip);
+  Udp.begin(localPort);
+  Serial.begin(9600);
+
+  thrusterA.attach(3);//initializes the the signal wire of the esc to the respective port
+  thrusterB.attach(5);
+  thrusterC.attach(6);
+  thrusterD.attach(9); 
+  thrusterE.attach(7);//up/down
+  thrusterF.attach(8);//up/down
+
+  pinMode(10,OUTPUT);
+
+  thrusterA.writeMicroseconds(halt);//makes sure all of the thrusters are intialized at stopped
+  thrusterB.writeMicroseconds(halt);  
+  thrusterC.writeMicroseconds(halt);  
+  thrusterD.writeMicroseconds(halt);  
+  thrusterE.writeMicroseconds(halt);
+  thrusterF.writeMicroseconds(halt);
+
+  //delay(1000);//delay to allow the ESC to recognize the stopped signal
+  Serial.println("Hello World");
+}
+
+void loop() 
+{
+  int packetSize = Udp.parsePacket();
+  IPAddress remote = Udp.remoteIP();
+  Udp.read(packetBuffer,UDP_TX_PACKET_MAX_SIZE);//recieves the array
+  
+  int controller_minimum = 0;
+  int controller_maximum = 254;//max value that the controller gives
+  int minimum_thrust = 1200;
+  int maximum_thrust = 1800;
+  
+  Thrust_Values(packetBuffer[0], packetBuffer[1], packetBuffer[2], controller_minimum, controller_maximum, minimum_thrust, maximum_thrust);
+
+  delay(50);
+}
+
+int reverse(int thruster){
+  //returns the value that will cause the thrusters to go in
+  //reverse of the thruster value given by the parameters
+  if(thruster>halt){
+    int num = thruster-halt;
+    return (halt-num);
+  }
+  else{
+    int num = halt-thruster;
+    return(halt+num);
+  }
+}
+void Thrust_Values(int type, int magnitude_twist, int theta_vertical,int controller_minimum, int controller_maximum, int minimum_thrust, int maximum_thrust){//theta_twist and magnitude_vertical are depended on the type, so if the type is 0 there will be a theta and a magnitude
+  //value, if it's one there will be a twist and up and down values
+  if(type == 0){//magnitude and theta
+    double theta = (theta_vertical*2+1)*0.0174533;//plus one accounts for the rounding error, then puts it in degrees
+    int horizontal = magnitude_twist*cos(theta);
+    int vertical = magnitude_twist*sin(theta);
+    horizontal = map(horizontal, -controller_maximum, controller_maximum, minimum_thrust, maximum_thrust);//the horizontal axis is actually 45 degrees up from the origin because of the rotated thrusters
+    vertical = map(vertical, -controller_maximum, controller_maximum, minimum_thrust, maximum_thrust);
+    
+    int rev_horizontal = reverse(horizontal);
+    int rev_vertical = reverse(vertical);
+    
+    Thrusters_Go(horizontal, vertical, rev_vertical, rev_horizontal, halt, halt);
+  }
+  else{//twist or up and down
+    if(abs(magnitude_twist - controller_maximum/2) > abs(theta_vertical - controller_maximum/2)){//twist
+      magnitude_twist = map(magnitude_twist, controller_minimum, controller_maximum, minimum_thrust, maximum_thrust);
+      int rev = reverse(magnitude_twist);
+      Thrusters_Go(rev, magnitude_twist, magnitude_twist, rev, halt, halt);
+    }
+    else{//up or down
+      theta_vertical = map(theta_vertical, controller_maximum, controller_minimum, minimum_thrust, maximum_thrust);
+      int rev = reverse(theta_vertical);
+      Thrusters_Go(halt,halt,halt,halt,theta_vertical, rev);
+    }
+  }
+}
+void Thrusters_Go(int A, int B, int C, int D, int E, int F){
+  /*Serial.print(A);
+  Serial.print(" ");
+  Serial.print(B);
+  Serial.print(" ");
+  Serial.print(C);
+  Serial.print(" ");
+  Serial.print(D);
+  Serial.print(" ");
+  Serial.print(E);
+  Serial.print(" ");
+  Serial.println(F);*/
+  thrusterA.writeMicroseconds(A);
+  thrusterB.writeMicroseconds(B);  
+  thrusterC.writeMicroseconds(C);  
+  thrusterD.writeMicroseconds(D);  
+  thrusterE.writeMicroseconds(E);
+  thrusterF.writeMicroseconds(F);
+}
+
+void tools(){
+  if(packetBuffer[3]==1){
+  digitalWrite(gtrout,HIGH);
+  }
+  else{
+    digitalWrite(gtrout,LOW);
+  }
+  }
+
+///////////////////
+
+
+
+/master/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#include <Servo.h>  //For driving the ESCs and Servos
+#include <PS2X_lib.h> // Bill Porter's PS2 Library
+#include <SPI.h>
+#include <Ethernet.h>
+#include <EthernetUdp.h>
+
+PS2X ps2x;
+
+#define SD_SS 4//sets up ethernet communication ports, don't need to change this part
+byte mac[] = {0x90, 0xA2, 0xDA, 0x0E, 0x05, 0x04};  // ethernet interface MAC address
+IPAddress localIp(192, 168, 1, 251);    // local ip address
+IPAddress destIp(192, 168, 1, 15);      // destination ip address
+unsigned int port = 5678;               // destination port
+EthernetUDP Udp;
+
+const byte arraylength = 4;
+byte message[arraylength];
+
+int LY; //Value read off the PS2 Left Stick forwards/backwards
+int LX; // Value read off the PS2 Left Stick left/right
+int RY; //Right toggle, up/down
+int RX; //Left controller, twist right/left
+int button;
+
+
+void setup() {  
+  Serial.begin(9600);//allows serial moniter
+  ps2x.config_gamepad(5,3,6,2, false, false); //(clock, command, attention, data, Pressures, Rumble)
+  pinMode(SD_SS, OUTPUT);
+  digitalWrite(SD_SS, HIGH);
+  Ethernet.begin(mac,localIp);    // static ip version
+  Udp.begin(port);
+}
+
+void loop() {
+  const int maximum = 255, minimum = 0;
+  int mag, theta;//magnitude and theta
+  ps2x.read_gamepad(); //Needs to be called at least once a second
+  //Analog Stick readings
+  LY = ps2x.Analog(PSS_LY); //left Stick Up and Down
+  LX = ps2x.Analog(PSS_LX); //Left Stick Left and Right
+  RY = ps2x.Analog(PSS_RY); //left Stick Up and Down
+  RX = ps2x.Analog(PSS_RX); //Left Stick Left and Right
+  
+  LY = deadzone(LY, minimum, maximum);
+  LX = deadzone(LX, minimum, maximum);
+  RY = deadzone(RY, minimum, maximum);
+  RX = deadzone(RX, minimum, maximum);
+
+  buttons();
+  
+  theta = calculateTheta(LX,LY, maximum);
+  mag = magnitude(LX, LY, maximum);
+  message[0] = determineMove(mag, RX, maximum, RY);//returns 0 for straight line movement, 1 for twist
+  if(message[0] == 0){
+    message[1] = mag;
+    message[2] = theta/2;//divides by two so it fits in a byte, so theta really goes from 0 to 180;
+    message[3] = button;
+  }
+  else{//message[0]== 1
+    message[1] = RX;
+    message[2] = RY;
+    message[3] = button;
+  }
+  
+  Udp.beginPacket(destIp, port);
+  Udp.write(message,arraylength);
+  Udp.endPacket();
+  delay(50);
+
+}
+
+int deadzone(int controller_value, int minimum, int maximum){
+  //returns the middle of the possible controller value if the controller value isn't past the deadzone area
+  //Essentially making it so small unwanted movements in the controller won't cause the thrusters to move
+  int deadzone = 30;
+  int middle = (maximum-minimum)/2;
+  if(controller_value>(middle+deadzone)||controller_value<(middle-deadzone)){
+    controller_value = controller_value;
+  }
+  else{
+    controller_value = middle;
+  }
+  return controller_value;
+}
+
+int calculateTheta(double X, double Y, int maximum){
+  //Takes a X and Y value and outputs the value of theta in units of degrees
+  double theta;
+  Y = abs((Y-maximum)) - (maximum/2 + 1);//Takes the inverse of the Y value and subtracts one because of rounding
+  X = X - (maximum/2); // The +1 is for some rounding errors we migt have
+  theta = atan2(Y,X);
+  if(Y<0){  //transforms the bottom portion so that entire theta goes from 0 to 360
+    theta += 6.283;
+  }
+  theta -= .7854;//moves the axis 45 degrees to align with the thruster orientation
+  if(theta<0){
+    theta += 6.283;
+  }
+  theta = theta*180/3.14; //gives it back in degrees so that it can be sent as a byte
+  return theta;
+}
+int magnitude(int X, int Y, int maximum){
+  //calculates the magnitude of the left controller values
+  int mag = sqrt(sq(X- maximum/2)+sq(Y - maximum/2));  //calculates the magnitude of the directional vector using distance formula
+  if(mag>maximum/2){
+    mag = maximum/2;
+  }
+  return (mag*2);//gets it back to the actual value of the maximum
+}//End Magnitude function
+
+byte determineMove(int mag, int RX, int maximum, int RY){
+  //Compares whether the ROV should twist, move in a straight line, or go up or down, returns 0 for movement, returns 1 for twist
+  byte result;
+  RX = abs(RX - (maximum/2));
+  RY = abs(RY - (maximum/2));
+  if(mag>RX && mag>RY){
+    result = 0;
+  }
+  else{
+    result = 1;
+  }
+  return result;
+}
+
+void buttons(){
+  if(ps2x.ButtonPressed(PSB_SQUARE)){
+    button = 1;
+  }
+  else if(ps2x.ButtonPressed(PSB_TRIANGLE)){
+    button = 2;
+  }
+  else if(ps2x.ButtonPressed(PSB_CIRCLE)){
+    button = 3;
+  }
+  else if(ps2x.ButtonPressed(PSB_CROSS)){
+    button = 4;
+  }
+  else{
+    button = 0;
+  }
+}
