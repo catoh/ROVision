@@ -20,6 +20,6 @@ def printContours(contours):
 def getBlue(img):
     blue = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     BLUE_MIN = np.array([100,150,0], np.uint8)
-    BLUE_MAX = np.array([100,150,0], np.uint8)
+    BLUE_MAX = np.array([140,255,255], np.uint8)
     blue = cv2.inRange(blue, BLUE_MIN, BLUE_MAX)
     return blue

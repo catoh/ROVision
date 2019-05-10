@@ -14,7 +14,7 @@ def distance(point1, point2):
 def convertApproxToCorners(approx):
     corners = []
     for i  in range(len(approx)):
-        corners.append(approx[1])
+        corners.append(approx[i][0])
     return corners
 
 def calcSideLengths(corners):
@@ -40,3 +40,22 @@ def calcLength(contour, width):
     length = lng/rate
     return length
 
+img_path = './Media/medium.jpg'
+
+img = cv2.imread(img_path)
+blue = img.copy()
+
+blue = IU.gBlur(blue, 5, 1)
+cv2.imwrite('./Media/blur.jpg', blue)
+
+blue = IU.getBlue(blue)
+cv2.imwrite('./Media/blue.jpg', blue)
+
+ret, contours, hierarchy = cv2.findContours(blue, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+cv2.drawContours(img, contours, -1, (0,255,0), 5)
+cv2.imwrite('./Media/contours.jpg', img)
+
+width = 1.7
+for c in contours:
+    length = calcLength(c, width)
+    print('Length: ', length)
