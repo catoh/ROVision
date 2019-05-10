@@ -40,22 +40,24 @@ def calcLength(contour, width):
     length = lng/rate
     return length
 
-img_path = './Media/medium.jpg'
+if __name__=="__main__":
 
-img = cv2.imread(img_path)
-blue = img.copy()
+    img_path = './Media/small.jpg'
 
-blue = IU.gBlur(blue, 5, 1)
-cv2.imwrite('./Media/blur.jpg', blue)
+    img = cv2.imread(img_path)
+    blue = img.copy()
 
-blue = IU.getBlue(blue)
-cv2.imwrite('./Media/blue.jpg', blue)
+    blue = IU.gBlur(blue, 5, 1)
+    cv2.imwrite('./Media/blur.jpg', blue)
 
-ret, contours, hierarchy = cv2.findContours(blue, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-cv2.drawContours(img, contours, -1, (0,255,0), 5)
-cv2.imwrite('./Media/contours.jpg', img)
+    blue = IU.getBlue(blue)
+    cv2.imwrite('./Media/blue.jpg', blue)
 
-width = 1.7
-for c in contours:
-    length = calcLength(c, width)
-    print('Length: ', length)
+    ret, contours, hierarchy = cv2.findContours(blue, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(img, contours, -1, (0,255,0), 5)
+    cv2.imwrite('./Media/contours.jpg', img)
+
+    width = 1.7
+    for c in contours:
+        length = calcLength(c, width)
+        print('Length: ', length)
