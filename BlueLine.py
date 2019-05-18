@@ -40,11 +40,11 @@ def calcLength(contour, width):
     length = lng/rate
     return length
 
-if __name__=="__main__":
+def findCrack(img, width):
 
-    img_path = './Media/small.jpg'
+    #img_path = './Media/small.jpg'
 
-    img = cv2.imread(img_path)
+    #img = cv2.imread(img_path)
     blue = img.copy()
 
     blue = IU.gBlur(blue, 5, 1)
@@ -57,7 +57,7 @@ if __name__=="__main__":
     cv2.drawContours(img, contours, -1, (0,255,0), 5)
     cv2.imwrite('./Media/contours.jpg', img)
 
-    width = 1.7
+    #width = 1.7
     for c in contours:
         length = calcLength(c, width)
         print('Length: ', length)
