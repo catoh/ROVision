@@ -66,7 +66,7 @@ def countShapes(img_path):
     #   TODO: test detThreshVal thoroughly
     thresh_value = detThreshVal(blurred)
     ret, thresh = cv2.threshold(blurred, thresh_value, 255, cv2.THRESH_BINARY_INV)    
-    cv2.imwrite('/home/hc/Github/ROVision/Media/thresh.jpg', thresh)
+    #cv2.imwrite('/home/hc/Github/ROVision/Media/thresh.jpg', thresh)
     
     # get outline of the shapes
     #   findcontours returns a list of numpy arrays containing the coordinates of the boundaries
